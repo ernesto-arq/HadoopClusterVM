@@ -1,0 +1,82 @@
+1º Abrir a VirtualBox
+2º Iniciar as maquinas virtuais
+3º Loggin nas VM
+4º no Sevridor Linux digitar ifconfig
+
+5º verificar no master se todas as maquinas estão conectadas
+digitar > ping clt-01-deb.local
+digitar > ping clt-02-deb.local
+
+6º Comandos a seguir
+6.1 abrir cmd da maquina local e digitar
+6.2 digitar > ssh root@<IP do Servidor>
+6.3 digitar > senha: @ht4gt4rs
+6.4 digitar > cd /opt/hadoop-2.9.2/bin
+6.5 digitar > hdfs namenode -format
+
+7º Confirmar (Y)
+
+8º Passo
+digitar > cd ../sbin
+digitar > ./start-dfs.sh
+digitar > ./start-yarn.sh
+
+9º cmd local da maquina 
+digitar > digitar: exit
+
+10º ir até a pasta onde estão os arquivos para enviar ao hadoop e digitar:
+10.1 digitar > cd <caminho da pasta, exemplo>
+10.2 digitar > cd C:\Users\Ssd\OneDrive\Área de Trabalho\input_data
+
+11º ir até a pasta do arquivo de texto
+11.1 digitar > cd <caminho da pasta, exemplo>
+11.2 digitar > cd input_file
+11.3 logar no servido pelo sftp > sftp root@<ip do servidor>
+11.4 digitar senha > @ht4gt4rs
+11.5 digitar > put <nome do arquivo.extensão, como no exemplo a seguir>
+11.6 put words.txt
+11.7 exit
+
+11º ir até a pasta do arquivo de texto
+11.1 cd <caminho da pasta, exemplo>
+11.2 cd..
+11.3 cd input_wordCount
+11.4 logar no servido pelo sftp > sftp root@<ip do servidor>
+11.5 digitar senha > @ht4gt4rs
+11.6 digitar > put <nome do arquivo.extensão, como no exemplo a segucdir>
+11.7 put wordCount.jar
+11.8 exit
+
+12. Logar no servidor pelo ssh
+12.1 ssh root@<ip-do-servidor>
+12.2 digitar senha > @ht4gt4rs
+12.3 digitar > cd /opt/hadoop-2.9.2/bin
+12.4 digitar > hdfs dfs -mkdir /input
+12.5 digitar > hdfs dfs -put /root/words.txt /input
+
+13. Verificar os data nodes em:
+13.1 digitar no navegador > http://<IP do Servidor>:50070/
+13.2 exemplo: http://192.168.0.201:50070/
+
+14. Digitar no CMD LOCAL
+14.1 digitar > hadoop jar /root/wordCount.jar WordCount /input /output
+14.2 digitar > exit
+
+15. Gigitar no CMD LOCAL
+15.1 ssh root@<ip-do-servidor>
+15.2 digitar senha > @ht4gt4rs
+15.3 digitar > cd /opt/hadoop-2.9.2/bin
+15.4 digitar > hdfs dfs -ls /
+15.4 digitar > hadoop dfs -cat /output/*
+
+16. Desligar o servidor
+15.1 ssh root@<ip-do-servidor>
+15.2 digitar senha > @ht4gt4rs
+15.3 digitar > cd /opt/hadoop-2.9.2/bin
+15.4 digitar > cd ../sbin
+15.5 digitar > ./stop-dfs.sh
+15.6 digitar > ./stop-yarn.sh
+
+
+
+

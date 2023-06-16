@@ -1,0 +1,164 @@
+//Tarefas
+//Todas Concluidas (OK).
+// Disciplina: Sistemas Distribuidos - Mestrado UFC
+// Prof. Dr. Julio Anjos
+// Alunos: Ernesto Gurgel & Renê Ripardo
+// github: 
+
+package WordCount;
+//importações java
+import java.io.IOException;
+import java.util.Date;
+import java.text.SimpleDateFormat;
+import java.util.HashSet;
+import java.util.Set;
+import java.time.LocalTime;
+//importações apache
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import java.util.StringTokenizer;
+import org.apache.hadoop.io.IntWritable;
+
+//Função do Map
+	@SuppressWarnings("unused")
+	public class WordCount41b {
+	    public static class TokenizerMapper extends Mapper<Object, Text, Text, Text> {
+	        private Text word = new Text();
+	        public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
+	            String[] tokens = value.toString().split("\\s+");
+	          	// Conjunto de verificação para erros:
+	            //tokens.length >= 5: Verifica se a linha processada tem cinco tokens depois de ter sido dividida em pedaços
+	            //tokens[2].equals("1"): Esta parte verifica se o terceiro token[2] esta ligado, ou seja  "máquina" está ligada ou não
+	            //!tokens[0].isEmpty() && !tokens[1].isEmpty() && !tokens[2].isEmpty() && !tokens[3].isEmpty() && !tokens[4].isEmpty(): Valida se os elementos não estão vazios
+	            //tokens[3].length() == 14 && tokens[4].length() == 14: verifica a integridade da informação do timestemp
+	            //tokens[1].length() == 10 && tokens[2].length() == 1: verifica a integridade da informação do timestemp            
+	            if (tokens.length >= 5 && tokens[2].equals("1") && !tokens[0].isEmpty() && !tokens[1].isEmpty() && !tokens[2].isEmpty() && !tokens[3].isEmpty() && !tokens[4].isEmpty() && tokens[3].length() == 14 && tokens[4].length() == 14 && tokens[1].length() == 9  && tokens[2].length() == 1) {
+	            	//Criação da chave composta no Map do Token[1] nameNode e Token[2] ligado ou desligado
+	            	word.set(tokens[1] + "_" + tokens[2]);
+	                String outputValue = tokens[3] + "," + tokens[4];
+	                context.write(word, new Text(outputValue));
+	            }
+	        }
+    }
+//Função do Reduce    
+    public static class IntDiasReducer extends Reducer<Text, Text, Text, Text> {
+    	//Variavel da media de tempo
+        //?????? double averageTimeOnx = 0;
+        private boolean firstIteration = true;
+        public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+        	//Contador de ocorrencias ao qual é usada na divisão [denominador]
+            int count = 0;
+            //Contador de tempo decorrido entre inicio de uma execução e sua execução final
+            int countDays = 0;
+            //diferença de tempo
+            long totalTimestampDifference = 0;
+            //Variavel para pegar primeiro e ultimo dia de execução
+            long minColumn3 = Long.MAX_VALUE;
+            long maxColumn4 = Long.MIN_VALUE;
+            // A HashSet para guardar as datas únicas.
+            Set<String> uniqueDates = new HashSet<>();
+            // laço da interação dos parsers
+            for (Text val : values) {
+            	//separação dos valores recebidos do Map em em Strings.
+                String[] parts = val.toString().split(",");
+                //transformação dos valores recebidos Token[3] e Token[4] em milissegundos 
+                //(A funcao de diferença entre datas exige que seja assim)
+                double column3 = Double.parseDouble(parts[0]) * 1000;
+                double column4 = Double.parseDouble(parts[1]) * 1000;
+                
+                //calculo do tempo decorrido daquela maquina naquele instante da leitura
+                totalTimestampDifference += ((new Date(Math.round(column4)).getTime() - new Date(Math.round(column3)).getTime()) / 1000) * 2;
+
+                //incrementa sempre que uma maquina é calculado a dif de tempo para ser o denominador
+                count++;
+                
+                //Pega valores recebidos do Token[3] e Token[4] e converte para
+                //Serem comparados e salvar a primeira execução daquela maquina e a ultima vez que ela executou
+                long currentColumn3 = Long.parseLong(parts[0].split("\\.")[0]);
+                long currentColumn4 = Long.parseLong(parts[1].split("\\.")[0]);
+                
+                //descobre quem foi a primeira execução e quem foi a ultima
+                minColumn3 = Math.min(minColumn3, currentColumn3);
+                maxColumn4 = Math.max(maxColumn4, currentColumn4);
+                // Adicione a data inicial ao HashSet
+                uniqueDates.add(parts[0]);
+                
+                //calcular a diferença do tempo entre inicio da execução da maquina e final da execução
+                Date date1 = new Date((long) column3);
+                Date date2 = new Date((long) column4);
+                long diffInMillies = Math.abs(date2.getTime() - date1.getTime());				//Calculo da diferença
+                int diffInDays = (int) ((diffInMillies / (24 * 60 * 60 * 1000)) + 0.5);			//Diferença em dias
+                //Acumulador de dias 
+                if(diffInDays == 0) {
+                	countDays += 1;
+                } 
+                else {
+                	countDays += diffInDays;
+                } 
+            }
+            // A quantidade de datas únicas será o tamanho do HashSet.
+            int uniqueDateCount = uniqueDates.size();
+            //transformação dos tempos em milissegundos para horas por segundo arredondado e devisão
+            int integerResult = (int) (((Math.round((totalTimestampDifference / 3600.0) / (double)count * 100.0) / 100.0)+0.5));
+            //resultado final de hora transformado em valor inteiro aproximado
+            int hourTotalAsInt = (int) Math.ceil(((totalTimestampDifference / 3600.0)+0.5));
+
+            //formatação do valor das datas recebidas (inicial) e (final) para formato legivel
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+            String formatted4Date = sdf.format(new Date(maxColumn4 * 1000L));
+            String formatted3Date = sdf.format(new Date(minColumn3 * 1000L));
+            
+            //Correção de arredondamento
+            hourTotalAsInt = Math.round(hourTotalAsInt/2);
+            integerResult = Math.round(integerResult/2);
+            //Inicio das regras de passagem de parametro para o output
+            if (countDays >= 300) {
+            	//Primeira iteração do job, cria uma linha "cabeçalho"
+                if (firstIteration) {
+                	String outputValue = "INICIO _________________________________________________________________________________________________________________________________________________ \n";
+                	context.write(key, new Text(outputValue));  
+                    firstIteration = false;
+                }
+                //Maquinas dentro do intervalo
+                if (integerResult >= 1) {
+                	String outputValue = "Qtd de Maq. Ligada.: " + String.format("%05d", count) + " Qtd.Func.H.Distintas.: " + String.format("%05d", uniqueDateCount) + " Qtd. Dias.: " + String.format("%05d", countDays) + ", Temp.Total.: " + String.format("%05d", hourTotalAsInt) + ", Med.Horas.: " + String.format("%05d", integerResult) + ", Prim.Exce.: " + formatted3Date + ", Ulima.Exec.: " + formatted4Date + ", Intervalo.: 1";
+                	context.write(key, new Text(outputValue));               
+                }
+                //Maquinas fora do intervalo
+                else
+	                {
+	                	String outputValue = "Qtd de Maq. Ligada.: " + String.format("%05d", count) + " Qtd.Func.H.Distintas.: " + String.format("%05d", uniqueDateCount) + " Qtd. Dias.: " + String.format("%05d", countDays) + ", Temp.Total.: " + String.format("%05d", hourTotalAsInt) + ", Med.Horas.: " + String.format("%05d", integerResult) + ", Prim.Exce.: " + formatted3Date + ", Ulima.Exec.: " + formatted4Date + ", Intervalo.: 0";
+	                	context.write(key, new Text(outputValue));
+	                }
+                
+            }   
+        }
+    }
+// Método main que inicia a execução do programa
+    public static void main(String[] args) throws Exception {
+    	// Cria a configuração
+        Configuration conf = new Configuration();
+        //Instancia da Função
+        Job job = Job.getInstance(conf, "word count");
+        // Configura a classe do jar
+        job.setJarByClass(WordCount.class);
+        // Configura a classe do combiner
+        job.setMapperClass(TokenizerMapper.class);
+        // Configura a classe do reducer
+        job.setReducerClass(IntDiasReducer.class);
+        // Configura a classe da chave de saída
+        job.setOutputKeyClass(Text.class);
+        // Configura a classe do valor de saída
+        job.setOutputValueClass(Text.class);
+        // Define o caminho do arquivo de entrada e saída
+        FileInputFormat.addInputPath(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
+    }
+}
